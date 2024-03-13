@@ -1,6 +1,6 @@
 ---
-name: Reporte de defectos
-about: Defectos encontrados
+name: 'Reporte de defectos '
+about: Defectos encontrados para el proyecto de Mantenimiento
 title: ''
 labels: bug
 assignees: ''
