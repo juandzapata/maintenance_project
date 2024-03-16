@@ -200,8 +200,8 @@ const prepareFrontMatter = (data: any, jsonMode: boolean) => {
       data[key] = moment.utc(item).format('YYYY-MM-DD HH:mm:ss');
     } else if (typeof item === 'string') {
       if (jsonMode || item.includes(':') || item.startsWith('#') || item.startsWith('!!')
-      || item.includes('{') || item.includes('}') || item.includes('[') || item.includes(']')
-      || item.includes('\'') || item.includes('"')) data[key] = `"${item.replace(/"/g, '\\"')}"`;
+        || item.includes('{') || item.includes('}') || item.includes('[') || item.includes(']')
+        || item.includes('\'') || item.includes('"')) data[key] = `"${item.replace(/"/g, '\\"')}"`;
     }
   }
 
@@ -291,47 +291,59 @@ class Post {
     });
   }
 
-  _renderScaffold(data: PostData) {
-    const { tag } = this.context.extend;
-    let splitted;
+  async _renderScaffold(data: PostData) {
+    try {
+      const scaffold = await this._getScaffold(data.layout);
+      const splitted = yfmSplit(scaffold);
+      const jsonMode = this.detectJsonMode(splitted.separator);
 
-    return this._getScaffold(data.layout).then(scaffold => {
-      splitted = yfmSplit(scaffold);
-      const jsonMode = splitted.separator.startsWith(';');
       const frontMatter = prepareFrontMatter({ ...data }, jsonMode);
+      const frontMatterObject = this.parseFrontMatter(frontMatter, splitted.separator);
 
-      return tag.render(splitted.data, frontMatter);
-    }).then(frontMatter => {
-      const { separator } = splitted;
-      const jsonMode = separator.startsWith(';');
+      this.updateFrontMatterObject(frontMatterObject, data, preservedKeys);
 
-      // Parse front-matter
-      const obj = jsonMode ? JSON.parse(`{${frontMatter}}`) : load(frontMatter);
-
-      Object.keys(data)
-        .filter(key => !preservedKeys.includes(key) && obj[key] == null)
-        .forEach(key => {
-          obj[key] = data[key];
-        });
-
-      let content = '';
-      // Prepend the separator
-      if (splitted.prefixSeparator) content += `${separator}\n`;
-
-      content += yfmStringify(obj, {
-        mode: jsonMode ? 'json' : ''
-      });
-
-      // Concat content
-      content += splitted.content;
-
-      if (data.content) {
-        content += `\n${data.content}`;
-      }
-
-      return content;
-    });
+      return this.generateContentMoreDataContent(frontMatterObject, splitted, data);
+    } catch (error) {
+      // Manejar errores
+      console.error('Error:', error);
+      throw error;
+    }
   }
+  private updateFrontMatterObject(frontMatterObject: any, data: PostData, preservedKeys: string[]): void {
+    Object.keys(data)
+      .filter(key => !preservedKeys.includes(key) && frontMatterObject[key] == null)
+      .forEach(key => {
+        frontMatterObject[key] = data[key];
+      });
+  }
+  private generateContentMoreDataContent(frontMatterObject: any, splitted: any, data: PostData): string {
+    let content = this.generateContent(frontMatterObject, splitted);
+    if (data.content) {
+      content += `\n${data.content}`;
+    }
+    return content;
+  }
+  private detectJsonMode(separator: string): boolean {
+    return separator.startsWith(';');
+  }
+
+  private parseFrontMatter(frontMatter: string, separator: string): any {
+    const jsonMode = this.detectJsonMode(separator);
+    return jsonMode ? JSON.parse(`{${frontMatter}}`) : load(frontMatter);
+  }
+
+  private generateContent(frontMatterObject: any, splitted: any): string {
+    let content = '';
+    if (splitted.prefixSeparator) content += `${splitted.separator}\n`;
+
+    content += yfmStringify(frontMatterObject, {
+      mode: this.detectJsonMode(splitted.separator) ? 'json' : ''
+    });
+
+    content += splitted.content;
+    return content;
+  }
+
 
   publish(data: PostData, replace?: boolean);
   publish(data: PostData, callback?: NodeJSLikeCallback<Result>);
