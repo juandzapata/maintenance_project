@@ -7,9 +7,9 @@ type Option = Partial<{
   desc: string;
   init: boolean;
   arguments: {
-      name: string;
-      desc: string;
-    }[];
+    name: string;
+    desc: string;
+  }[];
   options: {
     name: string;
     desc: string;
@@ -67,45 +67,53 @@ class Console {
   register(name: string, desc: string, fn: AnyFn): void
   register(name: string, options: Option, fn: AnyFn): void
   register(name: string, desc: string, options: Option, fn: AnyFn): void
-  register(name: string, desc: string | Option | AnyFn, options?: Option | AnyFn, fn?: AnyFn): void {
+  register(name: string, description: string | Option | AnyFn, options?: Option | AnyFn, funtionToProcess?: AnyFn): void {
     if (!name) throw new TypeError('name is required');
 
-    if (!fn) {
-      if (options) {
-        if (typeof options === 'function') {
-          fn = options;
-
-          if (typeof desc === 'object') { // name, options, fn
-            options = desc;
-            desc = '';
-          } else { // name, desc, fn
-            options = {};
-          }
-        } else {
-          throw new TypeError('fn must be a function');
-        }
-      } else {
-        // name, fn
-        if (typeof desc === 'function') {
-          fn = desc;
-          options = {};
-          desc = '';
-        } else {
-          throw new TypeError('fn must be a function');
-        }
-      }
+    if (funtionToProcess) {
+      this.processFunction(name, description, options, funtionToProcess);
+      return;
     }
 
-    if (fn.length > 1) {
-      fn = Promise.promisify(fn);
-    } else {
-      fn = Promise.method(fn);
+    if (options && typeof options === 'function') {
+      this.processOptionsFunction(name, description as AnyFn, options as AnyFn);
+      return;
     }
 
-    const c = fn as StoreFunction;
-    this.store[name.toLowerCase()] = c;
-    c.options = options as Option;
-    c.desc = desc as string;
+    if (typeof description === 'function') {
+      this.processDescriptionFunction(name, description as AnyFn, options as Option);
+      return;
+    }
+
+    throw new TypeError('Invalid arguments provided');
+  }
+
+  getProcessFunction(fn: AnyFn): AnyFn {
+    const MINIMUM_FN_LENGTH = 1;
+    return fn.length > MINIMUM_FN_LENGTH ? Promise.promisify(fn) : Promise.method(fn);
+  }
+
+  private processDescriptionFunction(name: string, desc: AnyFn, options: Option | AnyFn): void {
+    const functionToProcess = desc;
+    options = {};
+    const descString = '';
+    this.processFunction(name, descString, options, functionToProcess);
+  }
+
+  private processOptionsFunction(name: string, description: AnyFn, options: Option | AnyFn): void {
+    const funtionToProcess = description;
+    options = {};
+    const descriptionString = '';
+    this.processFunction(name, descriptionString, options, funtionToProcess);
+
+  }
+  private processFunction(name: string, description: string | Option | AnyFn, options: Option | AnyFn, funtionToProcess: AnyFn): void {
+    funtionToProcess = this.getProcessFunction(funtionToProcess as AnyFn);
+
+    const processedFunction = funtionToProcess as StoreFunction;
+    this.store[name.toLowerCase()] = processedFunction;
+    processedFunction.options = options as Option;
+    processedFunction.desc = description as string;
 
     this.alias = abbrev(Object.keys(this.store));
   }
