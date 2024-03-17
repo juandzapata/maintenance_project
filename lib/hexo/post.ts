@@ -291,6 +291,11 @@ class Post {
     });
   }
 
+  /**
+   * Renderiza el contenido de un scaffold a partir de los datos de la publicación.
+   * @param data Los datos de la publicación que se utilizarán para renderizar el scaffold.
+   * @returns el contenido renderizado del scaffold.
+   */
   async _renderScaffold(data: PostData) {
     try {
       const scaffold = await this._getScaffold(data.layout);
@@ -304,9 +309,7 @@ class Post {
 
       return this.generateContentMoreDataContent(frontMatterObject, splitted, data);
     } catch (error) {
-      // Manejar errores
       console.error('Error:', error);
-      throw error;
     }
   }
   private updateFrontMatterObject(frontMatterObject: any, data: PostData, preservedKeys: string[]): void {
