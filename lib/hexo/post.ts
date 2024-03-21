@@ -90,56 +90,12 @@ class PostRenderEscape {
       if (state === STATE_PLAINTEXT) { // From plain text to swig
         if (char === '{') {
           // check if it is a complete tag {{ }}
-          if (next_char === '{') {
-            state = STATE_SWIG_VAR;
-            idx++;
-          } else if (next_char === '#') {
-            state = STATE_SWIG_COMMENT;
-            idx++;
-          } else if (next_char === '%') {
-            state = STATE_SWIG_TAG;
-            idx++;
-            swig_tag_name = '';
-            swig_full_tag_start_buffer = '';
-            swig_tag_name_begin = false; // Mark if it is the first non white space char in the swig tag
-            swig_tag_name_end = false;
-          } else {
-            output += char;
-          }
+          idx = handleSwigTagType(next_char, idx, char);
         } else {
           output += char;
         }
       } else if (state === STATE_SWIG_TAG) {
-        if (char === '%' && next_char === '}') { // From swig back to plain text
-          idx++;
-          if (swig_tag_name !== '' && str.includes(`end${swig_tag_name}`)) {
-            state = STATE_SWIG_FULL_TAG;
-          } else {
-            swig_tag_name = '';
-            state = STATE_PLAINTEXT;
-            output += PostRenderEscape.escapeContent(this.stored, 'swig', `{%${buffer}%}`);
-          }
-
-          buffer = '';
-        } else {
-          buffer = buffer + char;
-          swig_full_tag_start_buffer = swig_full_tag_start_buffer + char;
-
-          if (isNonWhiteSpaceChar(char)) {
-            if (!swig_tag_name_begin && !swig_tag_name_end) {
-              swig_tag_name_begin = true;
-            }
-
-            if (swig_tag_name_begin) {
-              swig_tag_name += char;
-            }
-          } else {
-            if (swig_tag_name_begin === true) {
-              swig_tag_name_begin = false;
-              swig_tag_name_end = true;
-            }
-          }
-        }
+        idx = handleSwigTagClosure(char, next_char, idx);
       } else if (state === STATE_SWIG_VAR) {
         if (char === '}' && next_char === '}') {
           idx++;
@@ -189,6 +145,60 @@ class PostRenderEscape {
     }
 
     return output;
+
+    function handleSwigTagClosure(char: string, next_char: string, idx: number) {
+      if (char === '%' && next_char === '}') { // From swig back to plain text
+        idx++;
+        if (swig_tag_name !== '' && str.includes(`end${swig_tag_name}`)) {
+          state = STATE_SWIG_FULL_TAG;
+        } else {
+          swig_tag_name = '';
+          state = STATE_PLAINTEXT;
+          output += PostRenderEscape.escapeContent(this.stored, 'swig', `{%${buffer}%}`);
+        }
+
+        buffer = '';
+      } else {
+        buffer = buffer + char;
+        swig_full_tag_start_buffer = swig_full_tag_start_buffer + char;
+
+        if (isNonWhiteSpaceChar(char)) {
+          if (!swig_tag_name_begin && !swig_tag_name_end) {
+            swig_tag_name_begin = true;
+          }
+
+          if (swig_tag_name_begin) {
+            swig_tag_name += char;
+          }
+        } else {
+          if (swig_tag_name_begin === true) {
+            swig_tag_name_begin = false;
+            swig_tag_name_end = true;
+          }
+        }
+      }
+      return idx;
+    }
+
+    function handleSwigTagType(next_char: string, idx: number, char: string) {
+      if (next_char === '{') {
+        state = STATE_SWIG_VAR;
+        idx++;
+      } else if (next_char === '#') {
+        state = STATE_SWIG_COMMENT;
+        idx++;
+      } else if (next_char === '%') {
+        state = STATE_SWIG_TAG;
+        idx++;
+        swig_tag_name = '';
+        swig_full_tag_start_buffer = '';
+        swig_tag_name_begin = false; // Mark if it is the first non white space char in the swig tag
+        swig_tag_name_end = false;
+      } else {
+        output += char;
+      }
+      return idx;
+    }
   }
 }
 
