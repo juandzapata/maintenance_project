@@ -66,6 +66,12 @@ export = async (ctx: Hexo): Promise<void> => {
 
 };
 
+/**
+ * Find a file that starts with a specific name in a given directory
+ * and return the full path of that file.
+ * @param path Directory of the file whose full path you want to know
+ * @returns Full file path
+ */
 async function findConfigPath(path: string): Promise<string> {
   const { dir, name } = parse(path);
 
